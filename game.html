@@ -71,15 +71,15 @@ body{
   font-family:'Nunito',sans-serif;
   background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);
   color:var(--ink);
-  min-height:100dvh;
+  width:100%;min-height:100dvh;
   display:flex;
   justify-content:center;
   overflow:hidden;
 }
-.game{width:100%;max-width:440px;min-height:100dvh;display:flex;flex-direction:column;padding:calc(10px + env(safe-area-inset-top,0px)) 10px calc(6px + env(safe-area-inset-bottom,0px));position:relative}
+.game{width:100%;max-width:440px;min-height:100dvh;display:flex;flex-direction:column;padding:calc(10px + env(safe-area-inset-top,0px)) 10px calc(6px + env(safe-area-inset-bottom,0px));position:relative;margin:0 auto}
 
 /* ── Header ── */
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0;width:100%}
 .header-left{display:flex;align-items:center;gap:8px}
 .logo{font-family:'Fredoka',sans-serif;font-weight:700;font-size:18px;background:linear-gradient(135deg,#FF9A56,#FF6B8A);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .lvl-badge{font-size:11px;background:var(--card);padding:2px 10px;border-radius:20px;color:var(--ink-soft);border:1px solid rgba(0,0,0,0.06);box-shadow:0 1px 2px rgba(0,0,0,0.04)}
@@ -93,8 +93,11 @@ body{
 
 /* ── Top bar (coins + gems + progress) ── */
 .topbar{
-  display:flex;gap:4px;margin-bottom:4px;flex-shrink:0;align-items:center;
+  display:flex;gap:4px;margin-bottom:4px;flex-shrink:0;align-items:center;width:100%;
 }
+.level-bar-wrap{flex-shrink:0;margin-bottom:4px;width:100%}
+.energy-panel{flex-shrink:0;margin-bottom:4px;width:100%}
+.combo-bar{flex-shrink:0;min-height:20px;margin-bottom:4px;width:100%}
 .stat-card{
   background:var(--card);border-radius:12px;padding:4px 12px;
   border:1px solid rgba(0,0,0,0.05);
@@ -142,17 +145,17 @@ body{
 .combo-count.pop{transform:scale(1.5);color:var(--gold)}
 
 /* ── Board ── */
-.board-wrap{flex:1;display:flex;flex-direction:column;gap:5px;min-height:0}
+.board-wrap{flex:1;display:flex;flex-direction:column;gap:5px;min-height:0;width:100%}
 .sheet-panel{
   background:var(--card);border-radius:18px;padding:8px;
   border:1px solid rgba(0,0,0,0.04);
   box-shadow:0 2px 12px rgba(255,179,71,0.06),0 8px 32px rgba(74,55,40,0.04);
   position:relative;flex:1;display:flex;align-items:center;justify-content:center;min-height:0;
-  transition:box-shadow 0.3s ease;
+  width:100%;transition:box-shadow 0.3s ease;
 }
 .sheet{
   display:grid;grid-template-columns:repeat(8,1fr);gap:4px;
-  width:100%;transition:opacity 0.25s ease;
+  width:100%;max-width:100%;transition:opacity 0.25s ease;
 }
 .sheet.fading{opacity:0}
 .bubble{
@@ -185,7 +188,7 @@ body{
 .cannon-panel{
   background:var(--card);border-radius:16px;padding:8px 10px;
   border:1px solid rgba(0,0,0,0.04);box-shadow:0 2px 12px rgba(255,179,71,0.06);
-  display:flex;align-items:center;gap:10px;flex-shrink:0;
+  display:flex;align-items:center;gap:10px;flex-shrink:0;width:100%;
 }
 .range{flex:1;height:68px;position:relative;background:linear-gradient(180deg,#FFF0E5,#FFE8D8);border-radius:12px;overflow:hidden;border:1px solid rgba(0,0,0,0.04);box-shadow:inset 0 1px 3px rgba(0,0,0,0.04)}
 .range.shake{animation:shake 0.25s ease}
