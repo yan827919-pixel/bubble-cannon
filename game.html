@@ -67,15 +67,16 @@
 .bg-bubble:nth-child(7){width:20px;height:20px;left:60%;animation-duration:15s;animation-delay:6s}
 .bg-bubble:nth-child(8){width:10px;height:10px;left:40%;animation-duration:12s;animation-delay:7s}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
-html,body{width:100%;height:100%;overflow:hidden}
 body{
   font-family:'Nunito',sans-serif;
   background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);
   color:var(--ink);
+  min-height:100dvh;
   display:flex;
   justify-content:center;
+  overflow:hidden;
 }
-.game{width:100%;max-width:440px;height:100%;display:flex;flex-direction:column;padding:10px 10px 6px;position:relative;overflow:hidden}
+.game{width:100%;max-width:440px;min-height:100dvh;display:flex;flex-direction:column;padding:calc(10px + env(safe-area-inset-top,0px)) 10px calc(6px + env(safe-area-inset-bottom,0px));position:relative}
 
 /* ── Header ── */
 .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0}
@@ -558,7 +559,7 @@ body{
 .lb-score{font-family:'Fredoka',sans-serif;text-align:right}
 
 @media(max-width:380px){
-  .game{padding:8px 6px 4px}
+  .game{padding:calc(8px + env(safe-area-inset-top,0px)) 6px calc(4px + env(safe-area-inset-bottom,0px))}
   .logo{font-size:15px}.stat-card{padding:3px 8px;height:26px}.stat-card .val{font-size:12px}
   .stat-btn{height:26px;font-size:10px;padding:0 8px}
   .sheet{gap:3px}.sheet-panel{padding:6px}.cannon-panel{padding:6px 8px}.range{height:60px}
