@@ -156,11 +156,44 @@ body{
   animation:drift 3s ease-in-out infinite alternate;z-index:2;
 }
 @keyframes drift{0%{left:12%}100%{left:88%}}
-.target-body{width:100%;height:100%;background:linear-gradient(180deg,#FFB5A0,#FF8A7A);border-radius:8px 8px 3px 3px;box-shadow:inset -2px 0 3px rgba(0,0,0,0.08),0 0 6px rgba(255,138,122,0.2)}
-.target-neck{position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:8px;height:8px;background:#FF8A7A;border-radius:2px 2px 0 0}
-.target.hit .target-body{animation:targetShake 0.3s ease}
-@keyframes targetShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)rotate(-4deg)}75%{transform:translateX(4px)rotate(4deg)}}
+/* ── Monster Target ── */
+.monster{width:100%;height:100%;position:relative}
+.m-head{
+  width:100%;height:100%;
+  background:linear-gradient(135deg,#8B5CF6,#6D28D9);
+  border-radius:50% 50% 45% 45%;
+  box-shadow:0 0 8px rgba(139,92,246,0.3);
+  border:1.5px solid rgba(255,255,255,0.15);
+}
+.m-horn{
+  position:absolute;top:-7px;width:7px;height:9px;
+  background:linear-gradient(180deg,#FBBF24,#D97706);
+  clip-path:polygon(50% 0,0 100%,100% 100%);z-index:3;
+}
+.m-horn.l{left:5px;transform:rotate(-12deg)}
+.m-horn.r{right:5px;transform:rotate(12deg)}
+.m-eye{
+  position:absolute;top:9px;width:8px;height:10px;
+  background:#fff;border-radius:50%;
+}
+.m-eye.l{left:5px}.m-eye.r{right:5px}
+.m-pupil{width:4px;height:4px;background:#1a1a2e;border-radius:50%;position:absolute;bottom:2px;left:2px}
+.m-mouth{
+  position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
+  width:10px;height:5px;border-bottom:2px solid #1a1a2e;border-radius:0 0 6px 6px;
+}
+.target.hit .m-head{animation:monsterHit 0.3s ease}
+@keyframes monsterHit{
+  0%,100%{transform:scale(1)}
+  25%{transform:scale(0.9)rotate(-5deg)}
+  50%{transform:scale(1.1)rotate(3deg)}
+  75%{transform:scale(0.95)rotate(-2deg)}
+}
+.target.hit .m-eye{height:3px;border-radius:2px;top:12px}
+.target.hit .m-pupil{opacity:0}
+.target.hit .m-mouth{width:8px;height:3px;border-bottom:none;background:#1a1a2e;border-radius:3px}
 
+/* ── Muzzle flash ── */
 .muzzle-flash{position:absolute;bottom:3px;left:50%;transform:translate(-50%,0);width:24px;height:24px;border-radius:50%;pointer-events:none;opacity:0;z-index:3}
 .muzzle-flash.fire{animation:flashOut 0.18s ease forwards}
 @keyframes flashOut{0%{opacity:1;transform:translate(-50%,0)scale(1)}100%{opacity:0;transform:translate(-50%,0)scale(2)}}
@@ -227,28 +260,49 @@ body{
 <body>
 
 <div class="game">
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="ic-stats"><rect x="3" y="13" width="4" height="8" rx="1" fill="currentColor"/><rect x="10" y="9" width="4" height="12" rx="1" fill="currentColor"/><rect x="17" y="5" width="4" height="16" rx="1" fill="currentColor"/></g>
+    <g id="ic-trophy"><path d="M8 5v3a4 4 0 0 0 8 0V5m-8 0H6a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h2m8-6h2a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2h-2m-4 5v2m0 2v-2m0 0 4 5m-4-5-4 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g id="ic-coin"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="12" y="15" text-anchor="middle" font-size="10" font-weight="bold" fill="currentColor">$</text></g>
+    <g id="ic-gem"><polygon points="12,2 18,10 12,22 6,10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><polygon points="12,2 12,22 18,10" fill="currentColor" opacity="0.3"/></g>
+    <g id="ic-mission"><rect x="7" y="3" width="10" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9 9h6M9 13h6M9 17h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/><circle cx="9" cy="7" r="1" fill="currentColor"/></g>
+    <g id="ic-shop"><circle cx="9" cy="20" r="1.5" fill="currentColor"/><circle cx="17" cy="20" r="1.5" fill="currentColor"/><path d="M3 3h2l1.68 10.16A2 2 0 0 0 8.66 15h7.68a2 2 0 0 0 1.98-1.84L20 6H6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g id="ic-auto"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></g>
+    <g id="ic-multi"><path d="M4 12h4M12 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M8 8v8M16 8v8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></g>
+    <g id="ic-slow"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v5l3 3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></g>
+    <g id="ic-magnet"><path d="M6 4v8a6 6 0 0 0 12 0V4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M6 4h4v8a2 2 0 0 0 4 0V4h4" fill="none" stroke="currentColor" stroke-width="1.5"/></g>
+    <g id="ic-bolt"><polygon points="11,2 5,14 10,14 9,22 17,10 12,10" fill="currentColor"/></g>
+    <g id="ic-fire"><path d="M12 2S8 7 8 11a4 4 0 0 0 8 0c0-4-4-9-4-9z" fill="currentColor"/><path d="M8 14.5a6 6 0 1 0 8 0" fill="none" stroke="currentColor" stroke-width="1.2"/></g>
+    <g id="ic-target"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="currentColor"/></g>
+    <g id="ic-star"><polygon points="12,2 14.5,9 22,9 16,14 18,22 12,17 6,22 8,14 2,9 9.5,9" fill="currentColor"/></g>
+    <g id="ic-check"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g id="ic-box"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.5"/><path d="M12 10v10" stroke="currentColor" stroke-width="1.5"/></g>
+    <g id="ic-refresh"><path d="M21 2v6h-6M3 22v-6h6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 8a9 9 0 1 0-2.83 6.17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></g>
+  </defs>
+</svg>
   <div class="header">
     <div class="header-left">
       <span class="logo">泡泡大炮</span>
       <span class="lvl-badge" id="lvlBadge">Lv.1</span>
     </div>
     <div class="header-right">
-      <button class="small-btn" id="statsBtn">📊</button>
-      <button class="small-btn" id="lbToggle">🏆</button>
+      <button class="small-btn" id="statsBtn"><svg width="14" height="14" viewBox="0 0 24 24"><use href="#ic-stats"/></svg></button>
+      <button class="small-btn" id="lbToggle"><svg width="14" height="14" viewBox="0 0 24 24"><use href="#ic-trophy"/></svg></button>
     </div>
   </div>
 
   <div class="topbar">
     <div class="stat-card">
-      <span class="ico">🪙</span>
+      <span class="ico"><svg width="13" height="13" viewBox="0 0 24 24" style="color:var(--gold);vertical-align:middle"><use href="#ic-coin"/></svg></span>
       <span class="val coin-txt" id="coinVal">0</span>
     </div>
     <div class="stat-card">
-      <span class="ico">💎</span>
+      <span class="ico"><svg width="13" height="13" viewBox="0 0 24 24" style="color:var(--purple);vertical-align:middle"><use href="#ic-gem"/></svg></span>
       <span class="val gem-txt" id="gemVal">0</span>
     </div>
-    <button class="stat-btn mission-btn" id="missionBtn">📋 任务</button>
-    <button class="stat-btn" id="shopToggle">🏪 商店</button>
+    <button class="stat-btn mission-btn" id="missionBtn"><svg width="12" height="12" viewBox="0 0 24 24" style="vertical-align:middle"><use href="#ic-mission"/></svg> 任务</button>
+    <button class="stat-btn" id="shopToggle"><svg width="12" height="12" viewBox="0 0 24 24" style="vertical-align:middle"><use href="#ic-shop"/></svg> 商店</button>
   </div>
 
   <div class="level-bar-wrap">
@@ -281,8 +335,15 @@ body{
       <div class="range" id="range">
         <div class="muzzle-flash" id="muzzleFlash"></div>
         <div class="target" id="target">
-          <div class="target-neck"></div>
-          <div class="target-body"></div>
+          <div class="monster">
+            <div class="m-horn l"></div>
+            <div class="m-horn r"></div>
+            <div class="m-head">
+              <div class="m-eye l"><div class="m-pupil"></div></div>
+              <div class="m-eye r"><div class="m-pupil"></div></div>
+              <div class="m-mouth"></div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="fire-wrap">
@@ -292,10 +353,10 @@ body{
   </div>
 
   <div class="powerup-bar">
-    <button class="powerup-btn" id="puAuto" title="自动戳泡">🔄</button>
-    <button class="powerup-btn" id="puMulti" title="三连发">🔱</button>
-    <button class="powerup-btn" id="puSlow" title="减速">🐢</button>
-    <button class="powerup-btn" id="puMagnet" title="磁铁">🧲</button>
+    <button class="powerup-btn" id="puAuto" title="自动戳泡"><svg width="16" height="16" viewBox="0 0 24 24"><use href="#ic-auto"/></svg></button>
+    <button class="powerup-btn" id="puMulti" title="三连发"><svg width="16" height="16" viewBox="0 0 24 24"><use href="#ic-multi"/></svg></button>
+    <button class="powerup-btn" id="puSlow" title="减速"><svg width="16" height="16" viewBox="0 0 24 24"><use href="#ic-slow"/></svg></button>
+    <button class="powerup-btn" id="puMagnet" title="磁铁"><svg width="16" height="16" viewBox="0 0 24 24"><use href="#ic-magnet"/></svg></button>
   </div>
 
   <div class="save-indicator" id="saveIndicator">💾 自动存档</div>
