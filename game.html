@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+
+<script>
+// 抖音小游戏 WebView 桥接
+(function(){
+  if(typeof tt === 'undefined') return; // 不在小游戏环境
+
+  // 接管 localStorage 使用小游戏缓存
+  const _origGet = localStorage.getItem;
+  const _origSet = localStorage.setItem;
+  const _origRemove = localStorage.removeItem;
+
+  localStorage.getItem = function(key){
+    try { return tt.getStorageSync(key); } catch(e){ return _origGet.call(localStorage, key); }
+  };
+  localStorage.setItem = function(key, val){
+    try { tt.setStorageSync(key, val); } catch(e){ _origSet.call(localStorage, key, val); }
+  };
+  localStorage.removeItem = function(key){
+    try { tt.removeStorageSync(key); } catch(e){ _origRemove.call(localStorage, key); }
+  };
+
+  // 通知小游戏框架 WebView 已就绪
+  if(tt.postMessage) tt.postMessage({type:'ready'});
+
+  console.log('🎯 抖音小游戏模式已激活');
+})();
+</script>
+
+<meta charset="UTF-8">
+<title>泡泡大炮 - 抖音休闲版</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FFF7F0; --bg2:#FFEEE0; --card:#FFFFFF; --card2:#FFF8F3;
+  --mint:#5DD4B0; --gold:#FFB347; --blue:#70C8F0; --red:#FF7A7A; --purple:#C084FC;
+  --ink:#4A3728; --ink-soft:#A0897A; --panel:#FFFFFF;
+  --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+body{
+  font-family:'Nunito',sans-serif;
+  background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);
+  color:var(--ink);
+  min-height:100dvh;
+  display:flex;
+  justify-content:center;
+  overflow:hidden;
+}
+.game{width:100%;max-width:440px;height:100dvh;display:flex;flex-direction:column;padding:calc(10px+var(--safe-top)) 10px calc(6px+var(--safe-bottom));position:relative}
+
+/* ── Header ── */
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0}
+.header-left{display:flex;align-items:center;gap:8px}
+.logo{font-family:'Fredoka',sans-serif;font-weight:700;font-size:18px;background:linear-gradient(135deg,#FF9A56,#FF6B8A);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.lvl-badge{font-size:11px;background:var(--card);padding:2px 10px;border-radius:20px;color:var(--ink-soft);border:1px solid rgba(0,0,0,0.06);box-shadow:0 1px 2px rgba(0,0,0,0.04)}
+.header-right{display:flex;gap:4px}
+.small-btn{
+  width:32px;height:32px;border-radius:50%;border:1px solid rgba(0,0,0,0.06);
+  background:var(--card);color:var(--ink-soft);font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+}
+
+/* ── Top bar (coins + gems + progress) ── */
+.topbar{
+  display:flex;gap:4px;margin-bottom:4px;flex-shrink:0;align-items:center;
+}
+.stat-card{
+  background:var(--card);border-radius:12px;padding:4px 12px;
+  border:1px solid rgba(0,0,0,0.05);
+  display:flex;align-items:center;gap:4px;height:30px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+}
+.stat-card .ico{font-size:13px}
+.stat-card .val{font-family:'Fredoka',sans-serif;font-size:14px;font-weight:600}
+.coin-txt{color:var(--gold)}.gem-txt{color:var(--purple)}
+.stat-btn{
+  font-family:'Nunito',sans-serif;font-weight:700;font-size:11px;
+  background:var(--card);border:1px solid rgba(0,0,0,0.05);border-radius:12px;
+  padding:0 12px;height:30px;cursor:pointer;color:var(--ink-soft);
+  display:flex;align-items:center;gap:4px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+}
+.stat-btn:active{transform:scale(0.96)}
+.mission-btn{color:#E8893C;background:linear-gradient(135deg,rgba(255,179,71,0.15),rgba(255,179,71,0.05))}
+.stats-btn{color:var(--mint);background:linear-gradient(135deg,rgba(93,212,176,0.15),rgba(93,212,176,0.05))}
+
+/* ── Level target bar ── */
+.level-bar-wrap{flex-shrink:0;margin-bottom:4px}
+.level-bar{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-soft);margin-bottom:2px}
+.level-target{font-family:'Fredoka',sans-serif;color:#E8893C}
+.progress-track{height:8px;background:#F0E6DC;border-radius:4px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,0.06)}
+.progress-fill{height:100%;background:linear-gradient(90deg,#FFB347,#FF8A8A);border-radius:4px;transition:width 0.3s ease;min-width:0%}
+
+/* ── Energy ── */
+.energy-panel{flex-shrink:0;margin-bottom:4px}
+.energy-track{position:relative;height:16px;background:#F0E6DC;border-radius:8px;overflow:hidden;border:1px solid rgba(0,0,0,0.04);box-shadow:inset 0 1px 3px rgba(0,0,0,0.06)}
+.energy-fill{position:absolute;left:0;top:0;bottom:0;width:0%;border-radius:8px 0 0 8px;transition:width 0.2s ease,background 0.2s ease}
+.energy-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:rgba(74,55,40,0.4);letter-spacing:1px}
+
+/* ── Combo ── */
+.combo-bar{flex-shrink:0;min-height:20px;margin-bottom:4px}
+.combo-display{
+  display:inline-flex;align-items:center;gap:4px;font-family:'Fredoka',sans-serif;font-weight:700;font-size:13px;
+  opacity:0;transition:opacity 0.2s;padding:1px 12px;border-radius:6px;background:var(--card);
+  border:1px solid rgba(0,0,0,0.04);box-shadow:0 1px 3px rgba(0,0,0,0.04);
+}
+.combo-display.active{opacity:1}
+.combo-count{display:inline-block;transition:transform 0.15s}
+.combo-count.pop{transform:scale(1.5);color:var(--gold)}
+
+/* ── Board ── */
+.board-wrap{flex:1;display:flex;flex-direction:column;gap:5px;min-height:0}
+.sheet-panel{
+  background:var(--card);border-radius:18px;padding:8px;
+  border:1px solid rgba(0,0,0,0.04);box-shadow:0 2px 12px rgba(255,179,71,0.08),0 4px 24px rgba(0,0,0,0.04);
+  position:relative;flex:1;display:flex;align-items:center;justify-content:center;min-height:0;
+}
+.sheet{
+  display:grid;grid-template-columns:repeat(8,1fr);gap:4px;
+  width:100%;transition:opacity 0.25s ease;
+}
+.sheet.fading{opacity:0}
+.bubble{
+  aspect-ratio:1;border-radius:50%;border:none;cursor:pointer;position:relative;padding:0;
+  box-shadow:0 1.5px 0 rgba(0,0,0,0.3),inset 0 -2px 3px rgba(0,0,0,0.2);
+  transition:transform 0.06s ease;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+}
+.bubble:active{transform:scale(0.88)}
+.bubble.popped{opacity:0.18 !important;box-shadow:inset 0 2px 4px rgba(0,0,0,0.3);cursor:default;transform:scale(0.85)}
+
+/* ── Particle ── */
+.particle-container{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5}
+.particle{position:absolute;border-radius:50%;pointer-events:none}
+
+/* ── Cannon ── */
+.cannon-panel{
+  background:var(--card);border-radius:16px;padding:8px 10px;
+  border:1px solid rgba(0,0,0,0.04);box-shadow:0 2px 12px rgba(255,179,71,0.06);
+  display:flex;align-items:center;gap:10px;flex-shrink:0;
+}
+.range{flex:1;height:68px;position:relative;background:linear-gradient(180deg,#FFF0E5,#FFE8D8);border-radius:12px;overflow:hidden;border:1px solid rgba(0,0,0,0.04);box-shadow:inset 0 1px 3px rgba(0,0,0,0.04)}
+.range.shake{animation:shake 0.25s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-2px)}40%{transform:translateX(2px)}60%{transform:translateX(-1px)}80%{transform:translateX(1px)}}
+.target{
+  position:absolute;top:50%;width:24px;height:40px;transform:translate(-50%,-50%);left:50%;
+  animation:drift 3s ease-in-out infinite alternate;z-index:2;
+}
+@keyframes drift{0%{left:12%}100%{left:88%}}
+.target-body{width:100%;height:100%;background:linear-gradient(180deg,#FFB5A0,#FF8A7A);border-radius:8px 8px 3px 3px;box-shadow:inset -2px 0 3px rgba(0,0,0,0.08),0 0 6px rgba(255,138,122,0.2)}
+.target-neck{position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:8px;height:8px;background:#FF8A7A;border-radius:2px 2px 0 0}
+.target.hit .target-body{animation:targetShake 0.3s ease}
+@keyframes targetShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)rotate(-4deg)}75%{transform:translateX(4px)rotate(4deg)}}
+
+.muzzle-flash{position:absolute;bottom:3px;left:50%;transform:translate(-50%,0);width:24px;height:24px;border-radius:50%;pointer-events:none;opacity:0;z-index:3}
+.muzzle-flash.fire{animation:flashOut 0.18s ease forwards}
+@keyframes flashOut{0%{opacity:1;transform:translate(-50%,0)scale(1)}100%{opacity:0;transform:translate(-50%,0)scale(2)}}
+
+.fire-wrap{flex-shrink:0}
+.fire-orb{
+  border:none;border-radius:50%;width:54px;height:54px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  filter:grayscale(0.6) brightness(0.95);opacity:0.5;
+  background:#F0E6DC;transition:all 0.15s ease;touch-action:manipulation;
+}
+.fire-orb.ready{filter:none;opacity:1}
+.fire-orb.ready:active{transform:scale(0.9)}
+.fire-orb.ready.pulse{animation:pulseGlow 0.6s ease infinite alternate}
+@keyframes pulseGlow{0%{box-shadow:0 0 6px currentColor}100%{box-shadow:0 0 14px currentColor,0 0 20px currentColor}}
+.fire-orb svg{width:38%;height:38%}
+.fire-orb.recoil{animation:recoilAnim 0.15s ease}
+@keyframes recoilAnim{0%{transform:scale(1)}40%{transform:scale(0.85)translateY(3px)}100%{transform:scale(1)translateY(0)}}
+
+.projectile{position:absolute;border-radius:50%;bottom:3px;left:50%;transform:translate(-50%,0);pointer-events:none;z-index:4;transition:transform 0.22s ease-out}
+.coin-float{position:absolute;font-family:'Fredoka',sans-serif;font-weight:600;font-size:12px;color:var(--gold);pointer-events:none;z-index:6;animation:floatup 0.8s ease forwards}
+@keyframes floatup{0%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-28px)}}
+.coin-float.crit{color:var(--purple);font-size:15px;font-weight:700}
+
+/* ── Crit ── */
+.crit-overlay{position:fixed;inset:0;pointer-events:none;z-index:49;display:flex;align-items:center;justify-content:center;opacity:0}
+.crit-overlay.fire{animation:critFlash 0.45s ease forwards}
+@keyframes critFlash{0%{opacity:0.25;background:rgba(171,71,188,0.08)}50%{opacity:0.1}100%{opacity:0}}
+.crit-text{font-family:'Fredoka',sans-serif;font-weight:700;font-size:36px;color:#C084FC;text-shadow:0 0 20px rgba(192,132,252,0.4);transform:scale(0);animation:critPop 0.55s ease forwards}
+@keyframes critPop{0%{transform:scale(0)rotate(-8deg);opacity:0}50%{transform:scale(1.2)rotate(3deg);opacity:1}100%{transform:scale(1)rotate(0deg);opacity:0}}
+
+/* ── Powerup bar ── */
+.powerup-bar{display:flex;gap:4px;flex-shrink:0;justify-content:center;margin-top:4px}
+.powerup-btn{
+  width:36px;height:36px;border-radius:50%;border:1px solid rgba(0,0,0,0.05);
+  background:var(--card);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;
+  position:relative;transition:all 0.15s;box-shadow:0 1px 3px rgba(0,0,0,0.04);
+}
+.powerup-btn:active{transform:scale(0.9)}
+.powerup-btn.active{background:var(--card);border-color:var(--mint);box-shadow:0 0 10px rgba(45,212,160,0.2)}
+.powerup-btn .badge{
+  position:absolute;top:-4px;right:-4px;background:var(--gold);color:#000;font-size:8px;font-weight:800;
+  border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;
+}
+.powerup-btn.active .badge{background:var(--mint)}
+
+/* ── Toast ── */
+.toast-container{position:fixed;top:calc(16px+var(--safe-top));left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:4px;pointer-events:none}
+.toast{
+  background:var(--card);color:var(--ink);padding:7px 16px;border-radius:8px;
+  font-family:'Fredoka',sans-serif;font-weight:600;font-size:12px;white-space:nowrap;text-align:center;
+  border:1px solid rgba(255,255,255,0.08);
+  animation:toastIn 0.2s ease,toastOut 0.25s ease 1.6s forwards;
+  box-shadow:0 4px 16px rgba(0,0,0,0.3);
+}
+@keyframes toastIn{0%{opacity:0;transform:translateY(-12px)scale(0.9)}100%{opacity:1;transform:translateY(0)scale(1)}}
+@keyframes toastOut{0%{opacity:1;transform:translateY(0)scale(1)}100%{opacity:0;transform:translateY(-12px)scale(0.9)}}
+
+/* ── Save indicator ── */
+.save-indicator{font-size:9px;color:var(--ink-soft);text-align:center;margin-top:2px;opacity:0;transition:opacity 0.15s;flex-shrink:0}
+.save-indicator.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="game">
+  <div class="header">
+    <div class="header-left">
+      <span class="logo">泡泡大炮</span>
+      <span class="lvl-badge" id="lvlBadge">Lv.1</span>
+    </div>
+    <div class="header-right">
+      <button class="small-btn" id="statsBtn">📊</button>
+      <button class="small-btn" id="lbToggle">🏆</button>
+    </div>
+  </div>
+
+  <div class="topbar">
+    <div class="stat-card">
+      <span class="ico">🪙</span>
+      <span class="val coin-txt" id="coinVal">0</span>
+    </div>
+    <div class="stat-card">
+      <span class="ico">💎</span>
+      <span class="val gem-txt" id="gemVal">0</span>
+    </div>
+    <button class="stat-btn mission-btn" id="missionBtn">📋 任务</button>
+    <button class="stat-btn" id="shopToggle">🏪 商店</button>
+  </div>
+
+  <div class="level-bar-wrap">
+    <div class="level-bar">
+      <span>🎯 关卡目标</span>
+      <span class="level-target" id="levelTarget">0 / 0</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="energy-panel">
+    <div class="energy-track" id="energyTrackWrap">
+      <div class="energy-fill" id="energyFill"></div>
+      <div class="energy-label" id="energyLabel">⚡ 戳泡泡充能</div>
+    </div>
+  </div>
+
+  <div class="combo-bar">
+    <div class="combo-display" id="comboDisplay">
+      <span>🔥</span><span class="combo-count" id="comboCount">x1</span><span>连击</span>
+    </div>
+  </div>
+
+  <div class="board-wrap">
+    <div class="sheet-panel">
+      <div class="sheet" id="sheet"></div>
+    </div>
+
+    <div class="cannon-panel">
+      <div class="range" id="range">
+        <div class="muzzle-flash" id="muzzleFlash"></div>
+        <div class="target" id="target">
+          <div class="target-neck"></div>
+          <div class="target-body"></div>
+        </div>
+      </div>
+      <div class="fire-wrap">
+        <button class="fire-orb" id="fireBtn"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="powerup-bar">
+    <button class="powerup-btn" id="puAuto" title="自动戳泡">🔄</button>
+    <button class="powerup-btn" id="puMulti" title="三连发">🔱</button>
+    <button class="powerup-btn" id="puSlow" title="减速">🐢</button>
+    <button class="powerup-btn" id="puMagnet" title="磁铁">🧲</button>
+  </div>
+
+  <div class="save-indicator" id="saveIndicator">💾 自动存档</div>
+</div>
+
+<!-- ═══ Mission Modal ═══ -->
+<div class="modal-overlay" id="missionOverlay">
+<div class="modal" style="max-width:380px">
+  <div class="modal-header"><span class="modal-title">📋 任务</span><button class="modal-close" id="missionClose">✕</button></div>
+  <div id="missionList"></div>
+</div></div>
+
+<!-- ═══ Shop Modal ═══ -->
+<div class="modal-overlay" id="shopOverlay">
+<div class="modal" style="max-width:360px">
+  <div class="modal-header"><span class="modal-title">🏪 商店</span><button class="modal-close" id="shopClose">✕</button></div>
+  <div class="shop-grid" id="shopGrid"></div>
+</div></div>
+
+<!-- ═══ Stats Modal ═══ -->
+<div class="modal-overlay" id="statsOverlay">
+<div class="modal" style="max-width:340px">
+  <div class="modal-header"><span class="modal-title">📊 数据统计</span><button class="modal-close" id="statsClose">✕</button></div>
+  <div id="statsContent"></div>
+</div></div>
+
+<!-- ═══ Leaderboard ═══ -->
+<div class="modal-overlay" id="lbOverlay">
+<div class="modal" style="max-width:360px">
+  <div class="modal-header"><span class="modal-title">🏆 排行榜</span><button class="modal-close" id="lbClose">✕</button></div>
+  <div id="lbList"></div>
+</div></div>
+
+<!-- ═══ Level Complete ═══ -->
+<div class="modal-overlay" id="levelOverlay">
+<div class="modal level-modal" style="max-width:320px;text-align:center">
+  <div style="font-size:48px;margin-bottom:8px" id="levelEmoji">🎉</div>
+  <div class="modal-title" style="margin-bottom:4px" id="levelTitle">通关！</div>
+  <div style="font-size:13px;color:var(--ink-soft);margin-bottom:12px" id="levelDesc"></div>
+  <div style="display:flex;gap:8px;justify-content:center">
+    <button class="modal-action-btn primary" id="levelNextBtn">下一关 ▶</button>
+    <button class="modal-action-btn" id="levelShopBtn">🏪 商店</button>
+  </div>
+</div></div>
+
+<!-- ═══ Crit ═══ -->
+<div class="crit-overlay" id="critOverlay"><div class="crit-text">⚡ 暴击!</div></div>
+
+<!-- ═══ Toast ═══ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<style>
+/* ── Modal common ── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(74,55,40,0.3);display:none;
+  align-items:center;justify-content:center;padding:20px;z-index:50;
+  backdrop-filter:blur(3px);
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--card);border-radius:18px;padding:18px;width:100%;
+  border:1px solid rgba(0,0,0,0.04);box-shadow:0 8px 32px rgba(74,55,40,0.12);
+}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.modal-title{font-family:'Fredoka',sans-serif;font-size:16px;font-weight:600}
+.modal-close{
+  width:26px;height:26px;border-radius:50%;border:1px solid rgba(0,0,0,0.05);
+  background:var(--card2);color:var(--ink-soft);font-size:13px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.modal-action-btn{
+  font-family:'Nunito',sans-serif;font-weight:800;font-size:13px;
+  padding:10px 24px;border-radius:10px;border:none;cursor:pointer;
+  background:var(--card2);color:var(--ink-soft);border:1px solid rgba(0,0,0,0.04);
+}
+.modal-action-btn.primary{background:linear-gradient(135deg,#FFB347,#FF8A8A);color:#fff;border:none}
+
+/* ── Mission ── */
+.mission-item{
+  background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;
+  display:flex;align-items:center;gap:10px;
+}
+.mission-item.done{opacity:0.5}
+.mission-item.done .mission-check{background:var(--mint);color:#000}
+.mission-check{
+  width:24px;height:24px;border-radius:50%;background:var(--bg2);
+  display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;
+}
+.mission-info{flex:1}
+.mission-name{font-size:12px;font-weight:700}
+.mission-progress{font-size:10px;color:var(--ink-soft);margin-top:2px}
+.mission-reward{font-size:11px;color:var(--gold);font-weight:700;white-space:nowrap}
+
+/* ── Shop grid ── */
+.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.shop-item{
+  background:var(--card2);border-radius:10px;padding:12px;text-align:center;
+  border:1px solid rgba(255,255,255,0.04);
+}
+.shop-item-ico{font-size:24px;margin-bottom:4px}
+.shop-item-name{font-size:11px;font-weight:700;margin-bottom:2px}
+.shop-item-desc{font-size:10px;color:var(--ink-soft);margin-bottom:8px}
+.shop-item-btn{
+  width:100%;font-family:'Nunito',sans-serif;font-weight:800;font-size:11px;
+  padding:6px 0;border-radius:8px;border:none;cursor:pointer;
+  background:var(--gold);color:#000;
+}
+.shop-item-btn:disabled{background:var(--card2);color:var(--ink-soft);cursor:not-allowed}
+.shop-item-btn.owned{background:var(--mint);color:#000}
+
+/* ── Stats ── */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat-item{background:var(--card2);border-radius:10px;padding:10px;text-align:center}
+.stat-item .s-val{font-family:'Fredoka',sans-serif;font-size:20px;font-weight:700;color:var(--mint)}
+.stat-item .s-lbl{font-size:10px;color:var(--ink-soft);margin-top:2px}
+
+/* ── Leaderboard ── */
+.lb-empty{text-align:center;color:var(--ink-soft);padding:20px 0;font-size:13px}
+.lb-row{
+  display:grid;grid-template-columns:26px 1fr 60px;gap:6px;align-items:center;
+  padding:6px 8px;border-radius:8px;font-size:12px;
+}
+.lb-row:nth-child(even){background:var(--card2)}
+.lb-row.lb-highlight{background:linear-gradient(90deg,rgba(255,194,75,0.2),transparent);color:var(--gold);font-weight:700}
+.lb-rank{font-weight:700;text-align:center;font-family:'Fredoka',sans-serif}
+.lb-rank-1{color:var(--gold)}.lb-rank-2{color:#A0A0A0}.lb-rank-3{color:#CD7F32}
+.lb-score{font-family:'Fredoka',sans-serif;text-align:right}
+
+@media(max-width:380px){
+  .game{padding:calc(8px+var(--safe-top)) 6px calc(4px+var(--safe-bottom))}
+  .logo{font-size:15px}.stat-card{padding:3px 8px;height:26px}.stat-card .val{font-size:12px}
+  .stat-btn{height:26px;font-size:10px;padding:0 8px}
+  .sheet{gap:3px}.sheet-panel{padding:6px}.cannon-panel{padding:6px 8px}.range{height:60px}
+  .fire-orb{width:48px;height:48px}
+}
+</style>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════
+const COLS=8,ROWS=8;
+const BOLT_SVG='<svg viewBox="0 0 24 24" fill="#fff"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>';
+const CANNON_COLORS=['#FFC24B','#4FC3F7','#EF5350','#AB47BC'];
+const capTiers=[
+  {th:10,rw:20,cost:0},{th:20,rw:50,cost:80},{th:30,rw:90,cost:200},{th:40,rw:140,cost:400}
+];
+const bubLvls=[1,1.2,1.4,1.6]; const bubCosts=[0,120,280,500];
+const BUBBLE_COLORS=[
+  {c:'#2DD4A0',l:'rgba(45,212,160,0.3)'},{c:'#FFC24B',l:'rgba(255,194,75,0.3)'},
+  {c:'#4FC3F7',l:'rgba(79,195,247,0.3)'},{c:'#AB47BC',l:'rgba(171,71,188,0.3)'}
+];
+const SAVE_KEY='bc_save_v2'; const LB_KEY='bc_leaderboard'; const CRIT_CHANCE=0.15;
+const LEVEL_TARGETS=[50,120,220,360,550,800,1100,1500,2000,2700,3500,4500,5800,7500,10000];
+
+// Power-up config
+const PU_CONFIG={
+  auto: {name:'🔄 自动戳泡',desc:'每2秒自动戳一个泡',cost:50, dur:-1},
+  multi:{name:'🔱 三连发',desc:'下次射击×3弹道',cost:30, dur:-1},
+  slow: {name:'🐢 减速',desc:'目标移动变慢20秒',cost:20, dur:20000},
+  magnet:{name:'🧲 磁铁',desc:'戳泡自动补满能量',cost:40, dur:15000},
+};
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let energy=0,capLevel=0,bubLevel=0,coins=0,gems=0;
+let bubblesPopped=0,comboCount=0,totalCoinsEarned=0;
+let level=1,levelScore=0,levelRefills=5;
+let totalPops=0,totalFires=0,maxCombo=0,critCount=0;
+const totalBubbles=COLS*ROWS;
+
+// Power-up active timers
+let puActive={auto:false,multi:false,slow:false,magnet:false};
+let puTimers={};
+let autoInterval=null;
+
+// Missions
+let missions=[];
+
+function energyMax(){return capTiers[capLevel].th}
+function energyPerBubble(){return bubLvls[bubLevel]}
+function currentTier(){for(let i=capLevel;i>=0;i--)if(energy>=capTiers[i].th)return i;return -1}
+function comboMult(){return 1+comboCount*0.15}
+function isCrit(){return Math.random()<CRIT_CHANCE}
+function levelTarget(){return LEVEL_TARGETS[Math.min(level-1,LEVEL_TARGETS.length-1)]}
+function refillsMax(){return 5+Math.floor((level-1)/3)}
+
+// ═══════════════════════════════════════════════════════
+// AUDIO
+// ═══════════════════════════════════════════════════════
+let act=null;
+function ea(){if(!act)act=new(window.AudioContext||window.webkitAudioContext)();if(act.state==='suspended')act.resume()}
+function pp(){ea();const o=act.createOscillator(),g=act.createGain();o.type='sine';o.frequency.setValueAtTime(600+Math.random()*400,act.currentTime);o.frequency.exponentialRampToValueAtTime(200,act.currentTime+0.08);g.gain.setValueAtTime(0.1,act.currentTime);g.gain.exponentialRampToValueAtTime(0.001,act.currentTime+0.1);o.connect(g).connect(act.destination);o.start();o.stop(act.currentTime+0.1)}
+function pf(t){ea();const c=act;const o1=c.createOscillator(),g1=c.createGain();o1.type='sawtooth';o1.frequency.setValueAtTime(150+t*30,c.currentTime);o1.frequency.exponentialRampToValueAtTime(40,c.currentTime+0.2);g1.gain.setValueAtTime(0.08,c.currentTime);g1.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.2);o1.connect(g1).connect(c.destination);o1.start();o1.stop(c.currentTime+0.25);const o2=c.createOscillator(),g2=c.createGain();o2.type='sine';o2.frequency.setValueAtTime(800+t*100,c.currentTime+0.05);o2.frequency.exponentialRampToValueAtTime(1200,c.currentTime+0.15);g2.gain.setValueAtTime(0.06,c.currentTime+0.05);g2.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.2);o2.connect(g2).connect(c.destination);o2.start(c.currentTime+0.05);o2.stop(c.currentTime+0.25)}
+function ph(){ea();const o=act.createOscillator(),g=act.createGain();o.type='triangle';o.frequency.setValueAtTime(880,act.currentTime);o.frequency.exponentialRampToValueAtTime(1320,act.currentTime+0.1);g.gain.setValueAtTime(0.08,act.currentTime);g.gain.exponentialRampToValueAtTime(0.001,act.currentTime+0.18);o.connect(g).connect(act.destination);o.start();o.stop(act.currentTime+0.2)}
+function pc(){ea();const c=act;[1200,1500].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(f,c.currentTime+i*0.06);g.gain.setValueAtTime(0.05,c.currentTime+i*0.06);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+i*0.06+0.1);o.connect(g).connect(c.destination);o.start(c.currentTime+i*0.06);o.stop(c.currentTime+i*0.06+0.12)})}
+function pcrit(){ea();const c=act;[262,330,392].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(f,c.currentTime+i*0.04);o.frequency.exponentialRampToValueAtTime(f*1.5,c.currentTime+i*0.04+0.2);g.gain.setValueAtTime(0.06,c.currentTime+i*0.04);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+i*0.04+0.25);o.connect(g).connect(c.destination);o.start(c.currentTime+i*0.04);o.stop(c.currentTime+i*0.04+0.3)});const bs=c.sampleRate*0.08,b=c.createBuffer(1,bs,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<bs;i++)d[i]=(Math.random()*2-1)*Math.exp(-i/bs*5);const n=c.createBufferSource(),ng=c.createGain();n.buffer=b;ng.gain.setValueAtTime(0.1,c.currentTime);ng.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.06);n.connect(ng).connect(c.destination);n.start()}
+function pcl(l){ea();const c=act,base=523+l*80;[base,base*1.25].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(f,c.currentTime+i*0.05);g.gain.setValueAtTime(0.06,c.currentTime+i*0.05);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+i*0.05+0.12);o.connect(g).connect(c.destination);o.start(c.currentTime+i*0.05);o.stop(c.currentTime+i*0.05+0.15)})}
+function pLvlUp(){ea();const c=act;[523,659,784,1047].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(f,c.currentTime+i*0.1);g.gain.setValueAtTime(0.08,c.currentTime+i*0.1);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+i*0.1+0.2);o.connect(g).connect(c.destination);o.start(c.currentTime+i*0.1);o.stop(c.currentTime+i*0.1+0.25)})}
+
+// ═══════════════════════════════════════════════════════
+// MISSIONS
+// ═══════════════════════════════════════════════════════
+function genMissions(){
+  missions = [
+    {id:'m1',name:'泡泡收割机',desc:`戳${30+level*5}个泡泡`,prog:0,target:30+level*5,reward:10,ic:'🫧'},
+    {id:'m2',name:'神射手',desc:`发射大炮${5+Math.floor(level/2)}次`,prog:0,target:5+Math.floor(level/2),reward:15,ic:'🎯'},
+    {id:'m3',name:'暴击大师',desc:`触发${Math.min(1+Math.floor(level/3),5)}次暴击`,prog:0,target:Math.min(1+Math.floor(level/3),5),reward:25,ic:'⚡'},
+  ];
+  // Check saved progress
+  try{const raw=localStorage.getItem('bc_missions');if(raw){const d=JSON.parse(raw);if(d.level===level){missions.forEach((m,i)=>{if(d.prog[i]!==undefined)m.prog=d.prog[i];if(d.done&&d.done[i])m.done=true})}}}catch(e){}
+  missions.forEach(m=>{if(!m.done)m.done=false});
+  renderMissions();
+}
+function saveMissions(){
+  try{localStorage.setItem('bc_missions',JSON.stringify({level,prog:missions.map(m=>m.prog),done:missions.map(m=>m.done||false)}))}catch(e){}
+}
+function checkMissions(key,amount=1){
+  missions.forEach(m=>{
+    if(m.done)return;
+    if(key==='pop'&&m.id==='m1')m.prog=Math.min(m.target,m.prog+amount);
+    if(key==='fire'&&m.id==='m2')m.prog=Math.min(m.target,m.prog+1);
+    if(key==='crit'&&m.id==='m3')m.prog=Math.min(m.target,m.prog+1);
+    if(m.prog>=m.target&&!m.done){
+      m.done=true; gems+=m.reward; document.getElementById('gemVal').textContent=gems;
+      showToast(`✅ ${m.name} 完成 +${m.reward}💎`); saveGame();
+    }
+  });
+  renderMissions(); saveMissions();
+}
+function renderMissions(){
+  const el=document.getElementById('missionList');
+  if(!el)return;
+  el.innerHTML=missions.map(m=>`
+    <div class="mission-item${m.done?' done':''}">
+      <div class="mission-check">${m.done?'✓':m.ic}</div>
+      <div class="mission-info">
+        <div class="mission-name">${m.name}</div>
+        <div class="mission-progress">${m.done?'已完成':`${m.prog}/${m.target} ${m.desc}`}</div>
+      </div>
+      <div class="mission-reward">+${m.reward}💎</div>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// POWER-UPS
+// ═══════════════════════════════════════════════════════
+function hasPU(id){return !!gems&&gems>=PU_CONFIG[id].cost}
+function activatePU(id){
+  const cfg=PU_CONFIG[id];
+  if(puActive[id])return;
+  if(gems<cfg.cost){showToast(`💎 需要${cfg.cost}宝石`);return}
+  gems-=cfg.cost; document.getElementById('gemVal').textContent=gems;
+  puActive[id]=true;
+  document.getElementById('pu'+id.charAt(0).toUpperCase()+id.slice(1)).classList.add('active');
+  showToast(`✨ ${cfg.name} 激活！`);
+  saveGame();
+  
+  if(id==='auto'){
+    if(autoInterval)clearInterval(autoInterval);
+    autoInterval=setInterval(()=>{
+      const unpopped=[...document.querySelectorAll('.bubble:not(.popped)')];
+      if(unpopped.length>0){const idx=Math.floor(Math.random()*unpopped.length);popBubble(unpopped[idx])}
+    },2000);
+  }
+  if(id==='slow'){
+    document.querySelector('.target').style.animationDuration='6s';
+    if(puTimers.slow)clearTimeout(puTimers.slow);
+    puTimers.slow=setTimeout(()=>{document.querySelector('.target').style.animationDuration='3s';puActive.slow=false;document.getElementById('puSlow').classList.remove('active')},cfg.dur);
+  }
+  if(id==='magnet'){
+    if(puTimers.magnet)clearTimeout(puTimers.magnet);
+    puTimers.magnet=setTimeout(()=>{puActive.magnet=false;document.getElementById('puMagnet').classList.remove('active')},cfg.dur);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// SAVE / LOAD
+// ═══════════════════════════════════════════════════════
+function saveGame(){
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify({coins,capLevel,bubLevel,energy,gems,level,levelScore,levelRefills,totalPops,totalFires,maxCombo,critCount,totalCoinsEarned,comboCount}))}catch(e){}
+  const el=document.getElementById('saveIndicator');el.classList.add('show');
+  clearTimeout(el._st);el._st=setTimeout(()=>el.classList.remove('show'),800);
+}
+function loadGame(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);if(!raw)return false;
+    const d=JSON.parse(raw);coins=d.coins??0;capLevel=d.capLevel??0;bubLevel=d.bubLevel??0;energy=d.energy??0;
+    gems=d.gems??0;level=d.level??1;levelScore=d.levelScore??0;levelRefills=d.levelRefills??refillsMax();
+    totalPops=d.totalPops??0;totalFires=d.totalFires??0;maxCombo=d.maxCombo??0;critCount=d.critCount??0;totalCoinsEarned=d.totalCoinsEarned??0;comboCount=d.comboCount??0;
+    return true;
+  }catch(e){return false}
+}
+function resetGame(){
+  if(!confirm('重置所有进度？'))return;
+  const vals={coins:0,capLevel:0,bubLevel:0,energy:0,gems:0,level:1,levelScore:0,levelRefills:5,totalPops:0,totalFires:0,maxCombo:0,critCount:0,totalCoinsEarned:0,comboCount:0};
+  Object.assign(this,vals);
+  localStorage.removeItem(SAVE_KEY);localStorage.removeItem('bc_missions');
+  buildSheet();updateEnergyUI();updateLevelUI();refreshShopUI();updateComboUI();
+  genMissions();saveGame();showToast('已重置');
+}
+
+// ═══════════════════════════════════════════════════════
+// LEADERBOARD
+// ═══════════════════════════════════════════════════════
+function getLB(){try{return JSON.parse(localStorage.getItem(LB_KEY))||[]}catch(e){return[]}}
+function addScore(){
+  const lb=getLB();lb.push({coins,level,totalCoins:totalCoinsEarned,date:new Date().toLocaleDateString('zh-CN')});
+  lb.sort((a,b)=>b.level-a.level||b.totalCoins-a.totalCoins);if(lb.length>30)lb.length=30;
+  try{localStorage.setItem(LB_KEY,JSON.stringify(lb))}catch(e){}
+}
+function renderLB(){
+  const lb=getLB(),list=document.getElementById('lbList');
+  if(!lb.length){list.innerHTML='<div class="lb-empty">暂无记录</div>';return}
+  list.innerHTML='<div style="display:grid;grid-template-columns:26px 1fr 60px;gap:6px;padding:2px 8px 4px;font-size:10px;color:var(--ink-soft)"><span>#</span><span>日期 · 关卡</span><span style="text-align:right">金币</span></div>';
+  lb.slice(0,15).forEach((e,i)=>{const r=document.createElement('div');r.className='lb-row'+(i===0?' lb-highlight':'');r.innerHTML=`<div class="lb-rank ${i<3?'lb-rank-'+(i+1):''}">${i===0?'👑':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</div><div>${e.date||'??'} · Lv.${e.level||1}</div><div class="lb-score">${(e.totalCoins||0).toLocaleString()}</div>`;list.appendChild(r)});
+}
+
+// ═══════════════════════════════════════════════════════
+// SHOP (in-game upgrades + power-ups)
+// ═══════════════════════════════════════════════════════
+function refreshShopUI(){
+  const g=document.getElementById('shopGrid');if(!g)return;
+  g.innerHTML=`
+    <div class="shop-item">
+      <div class="shop-item-ico">📦</div>
+      <div class="shop-item-name">泡泡容量</div>
+      <div class="shop-item-desc">${capLevel>=capTiers.length-1?'已满级':`Lv.${capLevel+1}→Lv.${capLevel+2} 需${capTiers[capLevel+1]?.cost||'—'}🪙`}</div>
+      <button class="shop-item-btn" id="shopCapBtn" ${capLevel>=capTiers.length-1||coins<(capTiers[capLevel+1]?.cost||Infinity)?'disabled':''}>${capLevel>=capTiers.length-1?'✅ 满级':`${capTiers[capLevel+1].cost}🪙`}</button>
+    </div>
+    <div class="shop-item">
+      <div class="shop-item-ico">💥</div>
+      <div class="shop-item-name">泡泡威力</div>
+      <div class="shop-item-desc">${bubLevel>=bubLvls.length-1?'已满级':`Lv.${bubLevel+1}→Lv.${bubLevel+2} 需${bubCosts[bubLevel+1]}🪙`}</div>
+      <button class="shop-item-btn" id="shopBubBtn" ${bubLevel>=bubLvls.length-1||coins<(bubCosts[bubLevel+1]||Infinity)?'disabled':''}>${bubLevel>=bubLvls.length-1?'✅ 满级':`${bubCosts[bubLevel+1]}🪙`}</button>
+    </div>
+    <div class="shop-item">
+      <div class="shop-item-ico">🔄</div>
+      <div class="shop-item-name">自动戳泡</div>
+      <div class="shop-item-desc">每2秒自动戳一个</div>
+      <button class="shop-item-btn ${puActive.auto?'owned':''}" id="shopAutoBtn" ${puActive.auto?'disabled':gems<PU_CONFIG.auto.cost?'disabled':''}>${puActive.auto?'已激活':`${PU_CONFIG.auto.cost}💎`}</button>
+    </div>
+    <div class="shop-item">
+      <div class="shop-item-ico">🔱</div>
+      <div class="shop-item-name">三连发</div>
+      <div class="shop-item-desc">一发三弹道</div>
+      <button class="shop-item-btn" id="shopMultiBtn" ${gems<PU_CONFIG.multi.cost?'disabled':''}>${PU_CONFIG.multi.cost}💎</button>
+    </div>
+    <div class="shop-item">
+      <div class="shop-item-ico">🐢</div>
+      <div class="shop-item-name">减速</div>
+      <div class="shop-item-desc">目标慢20秒</div>
+      <button class="shop-item-btn ${puActive.slow?'owned':''}" id="shopSlowBtn" ${puActive.slow?'disabled':gems<PU_CONFIG.slow.cost?'disabled':''}>${puActive.slow?'已激活':`${PU_CONFIG.slow.cost}💎`}</button>
+    </div>
+    <div class="shop-item">
+      <div class="shop-item-ico">🧲</div>
+      <div class="shop-item-name">磁铁</div>
+      <div class="shop-item-desc">戳泡满能量</div>
+      <button class="shop-item-btn ${puActive.magnet?'owned':''}" id="shopMagnetBtn" ${puActive.magnet?'disabled':gems<PU_CONFIG.magnet.cost?'disabled':''}>${puActive.magnet?'已激活':`${PU_CONFIG.magnet.cost}💎`}</button>
+    </div>
+  `;
+  setTimeout(()=>{
+    document.getElementById('shopCapBtn')?.addEventListener('click',()=>{const n=capLevel+1;if(n>=capTiers.length)return;const c=capTiers[n].cost;if(coins<c)return;coins-=c;capLevel=n;updateEnergyUI();refreshShopUI();saveGame();showToast(`⚡ 容量升级 ${capTiers[n].th}`)});
+    document.getElementById('shopBubBtn')?.addEventListener('click',()=>{const n=bubLevel+1;if(n>=bubLvls.length)return;const c=bubCosts[n];if(coins<c)return;coins-=c;bubLevel=n;colorBubbles();refreshShopUI();saveGame();showToast(`💥 威力升级 +${bubLvls[n]}`)});
+    document.getElementById('shopAutoBtn')?.addEventListener('click',()=>activatePU('auto'));
+    document.getElementById('shopMultiBtn')?.addEventListener('click',()=>activatePU('multi'));
+    document.getElementById('shopSlowBtn')?.addEventListener('click',()=>activatePU('slow'));
+    document.getElementById('shopMagnetBtn')?.addEventListener('click',()=>activatePU('magnet'));
+    document.getElementById('coinVal').textContent=coins;
+    document.getElementById('gemVal').textContent=gems;
+  },0);
+}
+
+// ═══════════════════════════════════════════════════════
+// BUBBLE SHEET
+// ═══════════════════════════════════════════════════════
+const sheetEl=document.getElementById('sheet');
+const energyFill=document.getElementById('energyFill');
+const energyTicks=document.getElementById('energyTicks');
+const coinVal=document.getElementById('coinVal');
+
+function buildSheet(){
+  sheetEl.innerHTML='';bubblesPopped=0;
+  for(let i=0;i<totalBubbles;i++){
+    const b=document.createElement('button');b.className='bubble';
+    b.addEventListener('click',()=>popBubble(b));
+    b.addEventListener('touchstart',(e)=>{e.preventDefault();popBubble(b)},{passive:false});
+    sheetEl.appendChild(b);
+  }
+  colorBubbles();
+}
+function colorBubbles(){
+  const t=BUBBLE_COLORS[bubLevel];
+  sheetEl.querySelectorAll('.bubble:not(.popped)').forEach(b=>{b.style.background=`radial-gradient(circle at 32% 28%, rgba(255,255,255,0.25), ${t.l} 42%, ${t.c} 100%)`});
+}
+function popBubble(el){
+  if(el.classList.contains('popped'))return;
+  el.classList.add('popped');bubblesPopped++;totalPops++;
+  pp();spawnParticles(el);
+  
+  // Magnet mode: instantly fill energy
+  if(puActive.magnet) energy = energyMax();
+  else if(energy<energyMax()) energy=Math.min(energyMax(),energy+energyPerBubble());
+  
+  updateEnergyUI();
+  if(bubblesPopped>=totalBubbles){
+    levelRefills--;
+    if(levelRefills<=0 && levelScore<levelTarget()){
+      // Game over - didn't meet target
+      setTimeout(()=>showGameOver(),400);
+    }else{
+      setTimeout(refillSheet,300);
+    }
+  }
+  saveGame();
+}
+
+function spawnParticles(el){
+  const color=BUBBLE_COLORS[bubLevel];
+  const panel=sheetEl.closest('.sheet-panel');
+  let ctr=panel.querySelector('.particle-container');
+  if(!ctr){ctr=document.createElement('div');ctr.className='particle-container';panel.appendChild(ctr)}
+  const er=el.getBoundingClientRect(),cr=ctr.getBoundingClientRect();
+  const cx=er.left-cr.left+er.width/2,cy=er.top-cr.top+er.height/2;
+  for(let i=0;i<5;i++){
+    const p=document.createElement('div');p.className='particle';
+    const sz=3+Math.random()*5,ang=Math.random()*Math.PI*2,dist=12+Math.random()*22;
+    p.style.cssText=`width:${sz}px;height:${sz}px;background:${color.c};left:${cx}px;top:${cy}px;opacity:1;transition:all ${0.22+Math.random()*0.12}s ease-out;`;
+    ctr.appendChild(p);
+    requestAnimationFrame(()=>{p.style.transform=`translate(${Math.cos(ang)*dist}px,${Math.sin(ang)*dist}px)`;p.style.opacity='0'});
+    setTimeout(()=>p.remove(),450);
+  }
+}
+
+function refillSheet(){
+  sheetEl.classList.add('fading');
+  setTimeout(()=>{
+    buildSheet();sheetEl.classList.remove('fading');
+    const bonus=2+capLevel;
+    addCoins(bonus,sheetEl.getBoundingClientRect().width/2,20,sheetEl);
+    showToast(`💎 重组 +${bonus}🪙 剩余 ${levelRefills}次`);
+  },260);
+}
+
+function showGameOver(){
+  addScore();
+  document.getElementById('levelEmoji').textContent='😵';
+  document.getElementById('levelTitle').textContent='闯关失败';
+  document.getElementById('levelDesc').innerHTML=`Lv.${level} 目标 ${levelTarget()}🪙<br>当前 ${levelScore}🪙 继续努力！`;
+  document.getElementById('levelNextBtn').textContent='🔄 重试';
+  document.getElementById('levelNextBtn').onclick=()=>{
+    document.getElementById('levelOverlay').classList.remove('open');
+    levelRefills=refillsMax();levelScore=0;genMissions();
+    buildSheet();updateEnergyUI();updateLevelUI();
+  };
+  document.getElementById('levelShopBtn').onclick=()=>{
+    document.getElementById('levelOverlay').classList.remove('open');
+    document.getElementById('shopOverlay').classList.add('open');refreshShopUI();
+  };
+  document.getElementById('levelOverlay').classList.add('open');
+}
+
+// ═══════════════════════════════════════════════════════
+// ENERGY / LEVEL UI
+// ═══════════════════════════════════════════════════════
+function updateEnergyUI(){
+  const max=energyMax(),pct=Math.max(0,Math.min(100,energy/max*100));
+  energyFill.style.width=pct+'%';
+  const t=currentTier();
+  energyFill.style.background=t>=0?CANNON_COLORS[t]:'var(--card2)';
+  const lab=document.getElementById('energyLabel');
+  lab.textContent=t>=0?`⚡ ${CANNON_COLORS[t]==='#FFC24B'?'金':CANNON_COLORS[t]==='#4FC3F7'?'蓝':CANNON_COLORS[t]==='#EF5350'?'红':'紫'}色充能 ${energy}/${max}`:'⚡ 戳泡泡充能';
+  renderFireButton(t);
+}
+function renderFireButton(t){
+  const fb=document.getElementById('fireBtn');
+  fb.innerHTML=BOLT_SVG;
+  if(t>=0){fb.classList.add('ready');fb.style.background=CANNON_COLORS[t];fb.style.color=CANNON_COLORS[t];fb.style.boxShadow=`0 0 10px ${CANNON_COLORS[t]}`;fb.classList.add('pulse')}
+  else{fb.classList.remove('ready','pulse');fb.style.background='var(--card2)';fb.style.color='transparent';fb.style.boxShadow='none'}
+}
+function updateComboUI(){
+  const d=document.getElementById('comboDisplay'),c=document.getElementById('comboCount');
+  if(comboCount>0){d.classList.add('active');c.textContent='x'+(comboCount+1);c.classList.remove('pop');void c.offsetWidth;c.classList.add('pop')}
+  else{d.classList.remove('active');c.textContent=''}
+}
+function updateLevelUI(){
+  document.getElementById('lvlBadge').textContent=`Lv.${level}`;
+  document.getElementById('levelTarget').textContent=`${levelScore} / ${levelTarget()}🪙`;
+  const pct=Math.min(100,levelScore/levelTarget()*100);
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('coinVal').textContent=coins;
+}
+
+// ═══════════════════════════════════════════════════════
+// CANNON
+// ═══════════════════════════════════════════════════════
+const fireBtn=document.getElementById('fireBtn');
+const target=document.getElementById('target');
+const range=document.getElementById('range');
+const muzzleFlash=document.getElementById('muzzleFlash');
+const critOverlay=document.getElementById('critOverlay');
+
+fireBtn.addEventListener('click',()=>{const t=currentTier();if(t<0)return;fireCannon(t)});
+fireBtn.addEventListener('touchstart',(e)=>{e.preventDefault();const t=currentTier();if(t<0)return;fireCannon(t)},{passive:false});
+
+function fireCannon(tierIndex){
+  const shots=puActive.multi?3:1;
+  for(let s=0;s<shots;s++){
+    setTimeout(()=>doFire(tierIndex,s),s*80);
+  }
+  if(puActive.multi){puActive.multi=false;document.getElementById('puMulti').classList.remove('active')}
+}
+
+function doFire(tierIndex,shotIndex){
+  const tier=capTiers[tierIndex];const crit=isCrit();
+  if(shotIndex===0){energy-=tier.th;updateEnergyUI();totalFires++}
+  
+  pf(tierIndex);
+  fireBtn.classList.add('recoil');setTimeout(()=>fireBtn.classList.remove('recoil'),150);
+  muzzleFlash.style.background=CANNON_COLORS[tierIndex];muzzleFlash.classList.remove('fire');void muzzleFlash.offsetWidth;muzzleFlash.classList.add('fire');
+
+  const sz=10+tierIndex*4;
+  const proj=document.createElement('div');proj.className='projectile';
+  proj.style.width=sz+'px';proj.style.height=sz+'px';
+  proj.style.background=crit?'#AB47BC':CANNON_COLORS[tierIndex];
+  proj.style.boxShadow=`0 0 6px ${crit?'#AB47BC':CANNON_COLORS[tierIndex]}`;
+  range.appendChild(proj);
+
+  const rr=range.getBoundingClientRect(),tr=target.getBoundingClientRect();
+  // Add slight spread for multi-shot
+  const spread=shotIndex===1?10:shotIndex===2?-10:0;
+  const dx=(tr.left+tr.width/2)-(rr.left+rr.width/2)+spread;
+  const dy=(tr.top+tr.height/2)-(rr.bottom-3);
+  
+  requestAnimationFrame(()=>{proj.style.transform=`translate(calc(-50%+${dx}px),${dy}px)`});
+
+  setTimeout(()=>{
+    proj.remove();
+    if(shotIndex===0){
+      target.classList.add('hit');setTimeout(()=>target.classList.remove('hit'),350);
+      ph();
+      if(comboCount>=3||crit)range.classList.add('shake');
+      if(crit){pcrit();critCount++;checkMissions('crit');critOverlay.classList.remove('fire');void critOverlay.offsetWidth;critOverlay.classList.add('fire')}
+
+      let reward=tier.rw+Math.floor(Math.random()*5);
+      if(crit)reward=Math.floor(reward*2.5);
+      reward=Math.floor(reward*comboMult());
+      
+      comboCount++;if(comboCount>maxCombo)maxCombo=comboCount;
+      updateComboUI();
+      if(comboCount>0)pcl(Math.min(comboCount,8));
+      checkMissions('fire');
+
+      addCoins(reward,tr.left-rr.left+tr.width/2,tr.top-rr.top,range,crit);
+      levelScore+=reward;totalCoinsEarned+=reward;
+      updateLevelUI();
+      saveGame();
+      checkHighScore();
+      
+      // Check level complete
+      if(levelScore>=levelTarget()){
+        addScore();pLvlUp();
+        document.getElementById('levelEmoji').textContent='🎉';
+        document.getElementById('levelTitle').textContent=`第 ${level} 关通关！`;
+        document.getElementById('levelDesc').innerHTML=`获得 ${levelScore}🪙 · 连击 ${maxCombo}🔥<br>奖励: +${10+level*2}💰 +${level}💎`;
+        document.getElementById('levelNextBtn').textContent='▶ 下一关';
+        document.getElementById('levelNextBtn').onclick=()=>{
+          document.getElementById('levelOverlay').classList.remove('open');
+          coins+=10+level*2;gems+=level;
+          level++;levelScore=0;levelRefills=refillsMax();comboCount=0;energy=0;
+          genMissions();
+          buildSheet();updateEnergyUI();updateLevelUI();refreshShopUI();
+          saveGame();showToast(`🎯 第 ${level} 关开始！`);
+        };
+        document.getElementById('levelShopBtn').onclick=()=>{
+          document.getElementById('levelOverlay').classList.remove('open');
+          document.getElementById('shopOverlay').classList.add('open');refreshShopUI();
+        };
+        document.getElementById('levelOverlay').classList.add('open');
+      }
+    }
+  },220);
+}
+
+let _lh=0;
+function checkHighScore(){
+  const lb=getLB(),th=lb.length>0?Math.max(...lb.map(e=>e.totalCoins)):0;
+  if(totalCoinsEarned>th&&totalCoinsEarned>_lh&&totalCoinsEarned>0){_lh=totalCoinsEarned}
+}
+
+// ═══════════════════════════════════════════════════════
+// COINS / TOAST
+// ═══════════════════════════════════════════════════════
+function addCoins(amount,x,y,container,crit){
+  coins+=amount;checkMissions('pop');coinVal.textContent=coins;updateLevelUI();
+  const fl=document.createElement('div');
+  fl.className='coin-float'+(crit?' crit':'');fl.textContent=(crit?'⚡+':'+')+amount;
+  fl.style.left=x+'px';fl.style.top=y+'px';container.appendChild(fl);
+  setTimeout(()=>fl.remove(),800);pc();refreshShopUI();
+}
+function showToast(msg){
+  const c=document.getElementById('toastContainer'),t=document.createElement('div');
+  t.className='toast';t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),2000);
+}
+
+// ═══════════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════════
+// Shop
+document.getElementById('shopToggle').addEventListener('click',()=>{refreshShopUI();document.getElementById('shopOverlay').classList.add('open')});
+document.getElementById('shopClose').addEventListener('click',()=>document.getElementById('shopOverlay').classList.remove('open'));
+document.getElementById('shopOverlay').addEventListener('click',(e)=>{if(e.target===document.getElementById('shopOverlay'))document.getElementById('shopOverlay').classList.remove('open')});
+// Missions
+document.getElementById('missionBtn').addEventListener('click',()=>{renderMissions();document.getElementById('missionOverlay').classList.add('open')});
+document.getElementById('missionClose').addEventListener('click',()=>document.getElementById('missionOverlay').classList.remove('open'));
+document.getElementById('missionOverlay').addEventListener('click',(e)=>{if(e.target===document.getElementById('missionOverlay'))document.getElementById('missionOverlay').classList.remove('open')});
+// Stats
+document.getElementById('statsBtn').addEventListener('click',()=>{
+  document.getElementById('statsContent').innerHTML=`
+    <div class="stats-grid">
+      <div class="stat-item"><div class="s-val">${totalPops}</div><div class="s-lbl">总戳泡</div></div>
+      <div class="stat-item"><div class="s-val">${totalFires}</div><div class="s-lbl">总发射</div></div>
+      <div class="stat-item"><div class="s-val">${maxCombo}</div><div class="s-lbl">最高连击</div></div>
+      <div class="stat-item"><div class="s-val">${critCount}</div><div class="s-lbl">暴击次数</div></div>
+      <div class="stat-item"><div class="s-val" style="color:var(--gold)">${totalCoinsEarned}</div><div class="s-lbl">总金币</div></div>
+      <div class="stat-item"><div class="s-val" style="color:var(--purple)">${gems}</div><div class="s-lbl">宝石</div></div>
+    </div>
+  `;
+  document.getElementById('statsOverlay').classList.add('open');
+});
+document.getElementById('statsClose').addEventListener('click',()=>document.getElementById('statsOverlay').classList.remove('open'));
+document.getElementById('statsOverlay').addEventListener('click',(e)=>{if(e.target===document.getElementById('statsOverlay'))document.getElementById('statsOverlay').classList.remove('open')});
+// Leaderboard
+document.getElementById('lbToggle').addEventListener('click',()=>{renderLB();document.getElementById('lbOverlay').classList.add('open')});
+document.getElementById('lbClose').addEventListener('click',()=>document.getElementById('lbOverlay').classList.remove('open'));
+document.getElementById('lbOverlay').addEventListener('click',(e)=>{if(e.target===document.getElementById('lbOverlay'))document.getElementById('lbOverlay').classList.remove('open')});
+// Reset (hidden in stats)
+const resetBtn=document.createElement('button');resetBtn.textContent='🗑 重置数据';resetBtn.style.cssText='width:100%;margin-top:12px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:var(--card2);color:var(--ink-soft);font-size:11px;cursor:pointer';
+resetBtn.addEventListener('click',resetGame);
+// Append reset after stats content
+const origStatsBtn=document.getElementById('statsBtn');
+origStatsBtn.addEventListener('click',()=>{
+  setTimeout(()=>{const sc=document.getElementById('statsContent');if(sc&&!sc.querySelector('.reset-btn')){const rb=resetBtn.cloneNode(true);rb.className='reset-btn';rb.addEventListener('click',resetGame);sc.appendChild(rb)}},50);
+},true);
+
+// ═══════════════════════════════════════════════════════
+// POWERUP BUTTONS (quick access)
+// ═══════════════════════════════════════════════════════
+document.getElementById('puAuto').addEventListener('click',()=>activatePU('auto'));
+document.getElementById('puMulti').addEventListener('click',()=>activatePU('multi'));
+document.getElementById('puSlow').addEventListener('click',()=>activatePU('slow'));
+document.getElementById('puMagnet').addEventListener('click',()=>activatePU('magnet'));
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+const hasSave=loadGame();
+document.getElementById('lvlBadge').textContent=`Lv.${level}`;
+document.getElementById('gemVal').textContent=gems;
+buildSheet();updateEnergyUI();updateLevelUI();refreshShopUI();updateComboUI();genMissions();
+if(hasSave)showToast('💾 读档成功');
+
+// Auto-save every 15s
+setInterval(saveGame,15000);
+</script>
+</body>
+</html>
